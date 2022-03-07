@@ -5,10 +5,13 @@ public class Scene: SKScene {
 
     var childNodes: [Node] = []
 
-    private let blackHole = SKShapeNode.init(circleOfRadius: 200)
-    private let maximumDistance = CGFloat(120)
+    private let linkColor: UIColor
+    private let maxNodeSize: CGFloat
 
-    private var selectedNode = Node(at: .zero, isRoot: true, verseIndex: 0)
+    private let blackHole = SKShapeNode.init(circleOfRadius: 200)
+    private let maximumDistance = CGFloat(150)
+
+    private var selectedNode: Node?
     private var links: [Link] = []
     private var limit = CGSize()
     private var closestNode: Node?
@@ -16,7 +19,9 @@ public class Scene: SKScene {
     private var verseIndex: Int = 0
     private var alreadyAdded: Bool = false
 
-    public override init(size: CGSize) {
+    public init(size: CGSize, linkColor: UIColor, maxNodeSize: CGFloat) {
+        self.linkColor = linkColor
+        self.maxNodeSize = maxNodeSize
         super.init(size: size)
 
         setupBlackHole()
@@ -48,12 +53,11 @@ public class Scene: SKScene {
             childNodes.forEach {
                 guard !$0.isRoot else { return }
                 $0.audioNode.run(.stop())
-
             }
 
             didSelect = true
             selectedNode = touchedNode
-            selectedNode.reverb()
+            selectedNode?.reverb()
         }
 
         let shouldAddNewNode = !didSelect
@@ -64,7 +68,7 @@ public class Scene: SKScene {
             let dy = $0.circle.position.y - location.y
             let distance = sqrt(dx*dx + dy*dy)
 
-            return distance < maximumDistance
+            return /*$0.distance(from: location)*/distance < maximumDistance
         }
 
         addNode(at: location)
@@ -75,37 +79,41 @@ public class Scene: SKScene {
         guard didSelect else { return }
         let touch = touches.first!
         let location = touch.location(in: self)
-        selectedNode.circle.position = location
+        selectedNode?.circle.position = location
     }
 
     public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         didSelect = false
         guard blackHole.contains(touches.first!.location(in: self)) else { return }
-        selectedNode.remove()
+        selectedNode?.remove()
     }
 
     public func addNode(at location: CGPoint) {
         let newNode: Node
-        if let closeNode = closestNode {
-            newNode = Node(at: location, isRoot: false, verseIndex: closeNode.verseIndex)
-            addLink(node1: closeNode, node2: newNode)
+
+        if let closestNode = closestNode {
+            newNode = Node(at: location, isRoot: false, verseIndex: closestNode.verseIndex, maxSize: maxNodeSize)
+            addLink(node1: closestNode, node2: newNode)
         } else {
             verseIndex += 1
             if verseIndex == 4 { verseIndex = 0 }
-            newNode = Node(at: location, verseIndex: verseIndex)
+            newNode = Node(at: location, verseIndex: verseIndex, maxSize: maxNodeSize)
         }
+
         childNodes.append(newNode)
         addChild(newNode.circle)
         addChild(newNode.paddingCircle)
+
         if newNode.isRoot {
             newNode.reverb()
         }
     }
 
     public func addLink(node1: Node, node2: Node) {
-        let link = Link(node1: node1, node2: node2)
+        let link = Link(node1: node1, node2: node2, color: linkColor)
         closestNode?.childNodes.append(node2)
         links.append(link)
+        addChild(link.line)
     }
 
     public override func update(_ currentTime: TimeInterval) {

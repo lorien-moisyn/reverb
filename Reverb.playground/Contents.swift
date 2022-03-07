@@ -12,13 +12,22 @@
     - Note that the reverb follows the graph structure
  */
 
+var linkColor: UIColor = .black
+var maxNodeSize: CGFloat = 30
+
 //#-hidden-code
 import UIKit
 import SpriteKit
 import PlaygroundSupport
+import CoreGraphics
 
-let view = SKView(frame: CGRect(x: 0, y: 0, width: 600, height: 600))
-let scene = Scene(size: CGSize(width: 600, height: 600))
+let size: CGFloat = 600
+let view = SKView(frame: CGRect(x: 0, y: 0, width: size, height: size))
+let scene = Scene(
+    size: CGSize(width: size, height: size),
+    linkColor: linkColor,
+    maxNodeSize: maxNodeSize
+)
 scene.scaleMode = .aspectFill
 view.presentScene(scene)
 

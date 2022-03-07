@@ -1,7 +1,5 @@
 import SpriteKit
-import UIKit
 import AVFoundation
-
 
 public class Node {
 
@@ -29,14 +27,14 @@ public class Node {
 
     // MARK: Data structure properties
 
-    public var isRoot: Bool = true
-    public var childNodes: [Node] = []
+    let isRoot: Bool
+    var childNodes: [Node] = []
 
     // MARK: Visual and sound properties
 
-    public var audioNode: SKAudioNode = SKAudioNode()
-    public var verseIndex: Int = 0
-    public var soundsDict: [SKColor: String] = [
+    var audioNode: SKAudioNode = SKAudioNode()
+    let verseIndex: Int
+    var soundsDict: [SKColor: String] = [
         .red: "lo-a.m4a",
         .blue: "lo-b.m4a",
         .yellow: "lo-c.m4a",
@@ -45,7 +43,7 @@ public class Node {
     ]
 
     let minLeafRadius: CGFloat = 15
-    let maxLeafRadius: CGFloat = 70
+    let maxLeafRadius: CGFloat
     let rootRadius: CGFloat = 20
 
     let leafAnimationDuration = Double(0.76)
@@ -54,11 +52,12 @@ public class Node {
 
     // MARK: - Init
 
-    public init(at touch: CGPoint, isRoot: Bool = true, verseIndex: Int) {
+    public init(at touch: CGPoint, isRoot: Bool = true, verseIndex: Int, maxSize: CGFloat) {
         self.isRoot = isRoot
         self.verseIndex = verseIndex
+        self.maxLeafRadius = maxSize
 
-        let color = soundsDict.keys.first!
+        let color = soundsDict.keys.filter { $0 != .gray }.first!
 
         setupCircle(at: touch, with: color, isRoot: isRoot)
         setupAudioNode(for: color, isRoot: isRoot)
@@ -113,6 +112,14 @@ public class Node {
             }
         }()
         return distance / friction
+    }
+
+    func distance(from node: Node) -> CGFloat {
+        circle.position.distance(from: node.circle.position)
+    }
+
+    func distance(from point: CGPoint) -> CGFloat {
+        circle.position.distance(from: point)
     }
 
     /// Update position acording to the speed and the direction.

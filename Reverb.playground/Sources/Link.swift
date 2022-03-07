@@ -1,7 +1,4 @@
-
-import UIKit
 import SpriteKit
-
 
 // A link is what links two nodes on the screen
 public class Link {
@@ -9,18 +6,29 @@ public class Link {
     public var node1: Node
     public var node2: Node
     public var length: CGFloat
-    
-    public init(node1: Node, node2: Node) {
+
+    var path: CGMutablePath
+    var line: SKShapeNode
+
+    public init(node1: Node, node2: Node, color: UIColor) {
         self.node1 = node1
         self.node2 = node2
 
-        //pithagoryan theorem
-        let dx = node1.circle.position.x - node2.circle.position.x
-        let dy = node1.circle.position.y - node2.circle.position.y
-        let dist = sqrt(dx*dx + dy*dy)
+        path = CGMutablePath()
+        path.move(to: node1.circle.position)
+        path.addLine(to: node2.circle.position)
+        line = SKShapeNode(path: path)
+        line.strokeColor = color
 
-        //bring the nodes closer
-        length = min(dist, 90)
+        let distance = node1.distance(from: node2)
+        length = min(distance, 90)
+    }
+
+    public func update() {
+        path = CGMutablePath()
+        path.move(to: node1.circle.position)
+        path.addLine(to: node2.circle.position)
+        line.path = path
     }
 
     func bounce() {
@@ -29,6 +37,8 @@ public class Link {
         node1.circle.position.y += offset.y/4
         node2.circle.position.x -= offset.x/4
         node2.circle.position.y -= offset.y/4
+
+        update()
     }
 
     func getOffset() -> (x: CGFloat, y: CGFloat) {
