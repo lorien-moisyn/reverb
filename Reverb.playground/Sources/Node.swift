@@ -44,8 +44,8 @@ public class Node {
         .gray: "percussao1.m4a"
     ]
 
-    let minLeafRadius: CGFloat = 5
-    let maxLeafRadius: CGFloat = 40
+    let minLeafRadius: CGFloat = 15
+    let maxLeafRadius: CGFloat = 70
     let rootRadius: CGFloat = 20
 
     let leafAnimationDuration = Double(0.76)
@@ -58,20 +58,16 @@ public class Node {
         self.isRoot = isRoot
         self.verseIndex = verseIndex
 
-        // Uncomment to achieve multicoloured trees
-//         let randomIndex = Int(arc4random_uniform(UInt32(sou.count)))
         let color = soundsDict.keys.first!
 
         setupCircle(at: touch, with: color, isRoot: isRoot)
         setupAudioNode(for: color, isRoot: isRoot)
-
-        if isRoot { reverb() }
     }
 
     // MARK: - Setups
 
     func setupCircle(at touch: CGPoint, with color: SKColor, isRoot: Bool) {
-        let leafRadius = (CGFloat(arc4random()) / CGFloat(UINT32_MAX)) * (maxLeafRadius - minLeafRadius) + minLeafRadius
+        let leafRadius = CGFloat.random(in: minLeafRadius...maxLeafRadius)
         let radius = isRoot ? rootRadius : leafRadius
         circle = SKShapeNode(circleOfRadius: radius)
         circle.fillColor = isRoot ? .gray : color
@@ -92,28 +88,28 @@ public class Node {
         audioNode = SKAudioNode.init(fileNamed: fileName)
         audioNode.isPositional = true
         audioNode.autoplayLooped = isRoot ? true : false
-        //        if !isRoot {
-        //            audioNode.run(SKAction.changeVolume(to: 0.65, duration: 0))
-        //        }
+        if !isRoot {
+            audioNode.run(.changeVolume(to: 0.65, duration: 0))
+        }
         circle.addChild(audioNode)
     }
 
     // MARK: - Physical movement
 
     /// A "previous position" is forged with a random value, which can be 1 point further in a random direction, so the circle enters in the scene as if it was continuing a movement.
-    lazy var previousPosition: CGPoint = {
+    private lazy var previousPosition: CGPoint = {
         let previousX = circle.position.x + Direction.randomValue()
         let previousY = circle.position.y + Direction.randomValue()
         return CGPoint(x: previousX, y: previousY)
     }()
 
-    func speed(for axis: Axis) -> CGFloat {
+    private func speed(for axis: Axis) -> CGFloat {
         let distance: CGFloat = {
             switch axis {
             case .x:
                 return (circle.position.x - previousPosition.x)
             case .y:
-                return (circle.position.x - previousPosition.x)
+                return (circle.position.y - previousPosition.y)
             }
         }()
         return distance / friction
@@ -125,6 +121,7 @@ public class Node {
         let ySpeed = speed(for: .y)
 
         previousPosition = circle.position
+
         circle.position.x += xSpeed
         circle.position.y += ySpeed
 
@@ -133,14 +130,14 @@ public class Node {
         paddingCircle.position = circle.position
     }
 
-    /// Basically if the node reaches the limit, be it in x or y, change the direction and decrease the speed.
+    /// If the node reaches the limit, be it in x or y, this method changes the direction and decreases the speed.
     /// If it's the case, `previousPosition` becomes what would actually be the next position if there was no bounce, but considering a smaller speed due to the "energy loss", and the `circle.position` changes to what would be the previous position.
-    func bounceIfNeeded(size: CGSize) {
+    private func bounceIfNeeded(size: CGSize) {
         bounceIfNeededInX(width: size.width)
         bounceIfNeededInY(height: size.height)
     }
 
-    func bounceIfNeededInX(width: CGFloat) {
+    private func bounceIfNeededInX(width: CGFloat) {
         guard didReachTrailingLimit(width: width) || didReachLeadingLimit() else {
             return
         }
@@ -157,7 +154,7 @@ public class Node {
         previousPosition.x = positionBeforeBounce.x + xSpeed
     }
 
-    func bounceIfNeededInY(height: CGFloat) {
+    private func bounceIfNeededInY(height: CGFloat) {
         guard didReachBottomLimit(height: height) || didReachTopLimit() else {
             return
         }
@@ -174,80 +171,78 @@ public class Node {
         previousPosition.y = positionBeforeBounce.y + ySpeed
     }
 
-    func didReachTrailingLimit(width: CGFloat) -> Bool {
+    private func didReachTrailingLimit(width: CGFloat) -> Bool {
         circle.position.x > width
     }
 
-    func didReachLeadingLimit() -> Bool {
+    private func didReachLeadingLimit() -> Bool {
         circle.position.x < 0
     }
 
-    func didReachBottomLimit(height: CGFloat) -> Bool {
+    private func didReachBottomLimit(height: CGFloat) -> Bool {
         circle.position.y > height
     }
 
-    func didReachTopLimit() -> Bool {
+    private func didReachTopLimit() -> Bool {
         circle.position.y < 0
     }
 
     // MARK: - Sound handling
 
-    public func reverb() {
+    func reverb() {
         stopAllSounds()
         animateShape()
-        audioNode.run(SKAction.play())
+        audioNode.run(.play())
 
-        //wait the beat to be concluded and than repeat for each child node
+        // wait the beat to be concluded and than repeat for each child node
         DispatchQueue.main.asyncAfter(deadline: .now() + (isRoot ? 0 : 1.1*leafInterval)) {
             self.childNodes.forEach { $0.reverb() }
         }
     }
 
     func stopAllSounds() {
-        audioNode.run(SKAction.stop())
-        for node in childNodes { node.audioNode.run(SKAction.stop()) }
+        audioNode.run(.stop())
+        for node in childNodes { node.audioNode.run(.stop()) }
         circle.removeAllActions()
     }
 
+
     // MARK: - Visual
 
-    func animateShape() {
+    private func animateShape() {
         let action = isRoot ? rootAnimation() : leafAnimation()
         circle.run(action)
     }
 
-    func rootAnimation() -> SKAction {
-        SKAction.sequence([
-            SKAction.wait(forDuration: 0.1),
-            SKAction.repeatForever(
-                SKAction.sequence([
-                    SKAction.scale(to: 1.3, duration: 0.1 * rootInterval),
-                    SKAction.scale(to: 1, duration: 0.9 * rootInterval)
-                ])
-            )
-        ])
-    }
-
-    func leafAnimation() -> SKAction {
+    private func rootAnimation() -> SKAction {
         .sequence([
-            //the first scale is bigger
-            SKAction.scale(to: 2.6, duration: 0.1 * leafAnimationDuration),
-            SKAction.scale(to: 1, duration: 0.9 * leafAnimationDuration),
-
-            //a softer scale while the melody lasts
-            SKAction.repeat(
-                SKAction.sequence(
-                    [
-                        SKAction.scale(to: 1.5, duration: 0.1 * leafAnimationDuration),
-                        SKAction.scale(to: 1, duration: 0.9 * leafAnimationDuration)
-                    ]
-                ),
-                count: 7
+            .wait(forDuration: 0.1),
+            .repeatForever(
+                .sequence(scaleAnimation(1.3))
             )
         ])
     }
 
-    public func remove() {
+    private func leafAnimation() -> SKAction {
+        .sequence(
+            // first animation
+            scaleAnimation(2.6)
+
+            +
+
+            // a softer animation while the melody lasts
+            [SKAction.repeat(.sequence(scaleAnimation(1.5)), count: 5)]
+        )
+    }
+
+    private func scaleAnimation(_ scale: CGFloat) -> [SKAction] {
+        [
+            .scale(to: scale, duration: 0.1 * leafAnimationDuration),
+            .scale(to: 1, duration: 0.9 * leafAnimationDuration)
+        ]
+    }
+
+    func remove() {
         fade()
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
             self.paddingCircle.removeFromParent()
@@ -259,9 +254,9 @@ public class Node {
     func fade() {
         let parent = self.circle.parent as! Scene
         parent.childNodes = parent.childNodes.filter{ $0 !== self }
-        circle.run(SKAction.scale(to: 0, duration: 3))
-        paddingCircle.run(SKAction.scale(to: 0, duration: 3))
-        audioNode.run(SKAction.changePlaybackRate(to: 0, duration: 3))
-        audioNode.run(SKAction.changeVolume(to: 0, duration: 3))
+        circle.run(.scale(to: 0, duration: 3))
+        paddingCircle.run(.scale(to: 0, duration: 3))
+        audioNode.run(.changePlaybackRate(to: 0, duration: 3))
+        audioNode.run(.changeVolume(to: 0, duration: 3))
     }
 }
